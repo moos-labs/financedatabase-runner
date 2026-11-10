@@ -137,10 +137,18 @@ def frame_to_pandas(frame):
         frame = pd.DataFrame(frame)
     df = frame.copy()
     if "symbol" not in [str(c).lower() for c in df.columns]:
-        index_name = df.index.name or "symbol"
-        df = df.reset_index().rename(columns={df.columns[0] if len(df.columns) else "index": index_name})
-        if "symbol" not in df.columns and index_name in df.columns:
-            df = df.rename(columns={index_name: "symbol"})
+        # Symbol is the index: bring it back as the FIRST column,
+        # renaming positionally so existing columns (e.g. 'name')
+        # are never renamed by accident.
+        df = df.reset_index()
+        df.columns = ["symbol"] + [str(c) for c in df.columns[1:]]
+    # Guarantee unique column labels so row[label] is always a scalar.
+    seen = {}
+    unique_cols = []
+    for c in df.columns:
+        seen[c] = seen.get(c, 0) + 1
+        unique_cols.append(c if seen[c] == 1 else f"{c}_{seen[c]}")
+    df.columns = unique_cols
     return df
 
 
